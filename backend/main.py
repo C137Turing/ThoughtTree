@@ -1,11 +1,13 @@
-"""
-AI 需求分析工作台 — FastAPI 主入口
-"""
+"""AI Requirement Analysis Workbench - FastAPI entry point."""
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from api.sessions import router as sessions_router
+from api.messages import router as messages_router
+from api.config import router as config_router
+
 app = FastAPI(
-    title="AI 需求分析工作台",
+    title="AI Requirement Analysis Workbench",
     description="AI Requirement Analysis Workbench API",
     version="0.1.0",
 )
@@ -18,6 +20,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(sessions_router)
+app.include_router(messages_router)
+app.include_router(config_router)
+
 
 @app.get("/health")
 async def health_check():
@@ -26,5 +32,4 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

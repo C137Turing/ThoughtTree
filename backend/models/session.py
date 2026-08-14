@@ -1,7 +1,6 @@
 """Session ORM model — sessions table."""
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import (
     Column,
@@ -18,6 +17,7 @@ from db.base import Base
 
 class Session(Base):
     __tablename__ = "sessions"
+    __allow_unmapped__ = True
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     title = Column(String(255), nullable=False)
@@ -35,6 +35,14 @@ class Session(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationships
-    parent = relationship("Session", remote_side=[id], backref="children")
-    root = relationship("Session", remote_side=[id], foreign_keys=[root_id])
+    children = relationship(
+        "Session",
+        foreign_keys=[parent_id],
+        back_populates="parent",
+    )
+    parent = relationship(
+        "Session",
+        foreign_keys=[parent_id],
+        back_populates="children",
+        remote_side=[id],
+    )
