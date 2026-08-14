@@ -26,12 +26,11 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   copy: [content: string]
-  regenerate: []
+  regenerate: [messageId: string]
 }>()
 
 const listRef = ref<HTMLElement | null>(null)
 
-// Auto-scroll to bottom
 watch(
   () => props.messages.length,
   async () => {
@@ -46,7 +45,6 @@ async function handleCopy(msg: ChatMessage) {
   try {
     await navigator.clipboard.writeText(msg.content)
   } catch {
-    // Fallback
     const textarea = document.createElement('textarea')
     textarea.value = msg.content
     document.body.appendChild(textarea)
@@ -56,8 +54,8 @@ async function handleCopy(msg: ChatMessage) {
   }
 }
 
-function handleRegenerate(_msg: ChatMessage) {
-  emit('regenerate')
+function handleRegenerate(msg: ChatMessage) {
+  emit('regenerate', msg.id)
 }
 </script>
 
