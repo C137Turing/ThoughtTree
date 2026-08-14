@@ -1,0 +1,1 @@
+<!-- Sidebar.vue --><template><div class="sidebar"><slot /></div></template><script setup lang="ts"></script>
