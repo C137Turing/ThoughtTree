@@ -54,13 +54,12 @@ onMounted(() => {
 
 async function loadBreadcrumb() {
   try {
-    const res = await fetch("http://localhost:8000/api/sessions/" + props.win.id)
-    const s = await res.json()
-    const treeRes = await fetch("http://localhost:8000/api/sessions/" + s.root_id + "/tree")
-    const tree = await treeRes.json()
-    const ancestors = tree.filter((n: any) => n.id !== props.win.id).map((n: any) => ({ id: n.id, title: n.title }))
-    ancestors.push({ id: s.id, title: s.title })
-    breadcrumb.value = ancestors
+    const res = await fetch("http://localhost:8000/api/sessions/" + props.win.id + "/ancestors")
+    const ancestors = await res.json()
+    breadcrumb.value = [
+      ...ancestors.map((a: any) => ({ id: a.id, title: a.title })),
+      { id: props.win.id, title: props.win.title }
+    ]
   } catch { /* ignore */ }
 }
 

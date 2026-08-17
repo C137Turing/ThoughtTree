@@ -132,3 +132,18 @@ async def get_session_tree(session_id: str, db: AsyncSession = Depends(get_db)):
         .order_by(SessionTree.depth)
     )
     return [SessionResponse.model_validate(s) for s in result.scalars().all()]
+
+
+@router.get("/{session_id}/ancestors", response_model=list[SessionResponse])
+async def get_ancestors(session_id: str, db: AsyncSession = Depends(get_db)):
+    """Return ancestors of a session, ordered from root to parent."""
+    result = await db.execute(
+        select(Session, SessionTree.depth)
+        .join(SessionTree, Session.id == SessionTree.ancestor_id)
+        .where(SessionTree.descendant_id == session_id)
+        .where(SessionTree.depth > 0)
+        .order_by(SessionTree.depth.desc())
+    )
+    ancestors = [SessionResponse.model_validate(row[0]) for row in result.all()]
+    ancestors.reverse()
+    return ancestors

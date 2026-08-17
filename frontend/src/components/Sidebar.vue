@@ -5,19 +5,14 @@
       <button class="new-btn" @click="createNewSession">+ New</button>
     </div>
     <div class="tree-list">
-      <div
-        v-for="s in sessions.sessions.value"
-        :key="s.id"
-        class="tree-node"
-        :class="{ active: s.status === 'open', closed: s.status === 'closed', minimized: s.status === 'minimized' }"
-        @click="handleNodeClick(s)"
-      >
-        <span class="node-status" :title="s.status">
-          {{ s.status === 'open' ? '\u25CF' : s.status === 'minimized' ? '\u2014' : '\u25CB' }}
-        </span>
-        <span class="node-title">{{ s.title }}</span>
-      </div>
-      <div class="tree-empty" v-if="sessions.sessions.value.length === 0">
+      <TreeNode
+        v-for="node in treeNodes"
+        :key="node.session.id"
+        :node="node"
+        @click="handleTreeNodeClick(node.session)"
+        @delete="handleDelete(node.session, $event)"
+      />
+      <div class="tree-empty" v-if="treeNodes.length === 0">
         No sessions yet
       </div>
     </div>
@@ -25,33 +20,63 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { useSessionsStore } from '../stores/sessions'
-import { useWindowManager } from '../stores/windowManager'
+import { onMounted, computed } from "vue"
+import { useSessionsStore, type SessionInfo } from "../stores/sessions"
+import { useWindowManager } from "../stores/windowManager"
+import TreeNode from "./TreeNode.vue"
 
 const sessions = useSessionsStore()
 const wm = useWindowManager()
 
 onMounted(() => { sessions.fetchSessions() })
 
+interface TreeNodeType { session: SessionInfo; children: TreeNodeType[]; depth: number }
+
+const treeNodes = computed(() => {
+  const list = sessions.sessions.value
+  const map = new Map<string, TreeNodeType>()
+  const roots: TreeNodeType[] = []
+  for (const s of list) { map.set(s.id, { session: s, children: [], depth: 0 }) }
+  for (const node of map.values()) {
+    const parentId = node.session.parent_id
+    if (parentId && map.has(parentId)) {
+      const parent = map.get(parentId)!
+      node.depth = parent.depth + 1
+      parent.children.push(node)
+    } else { roots.push(node) }
+  }
+  return roots
+})
+
 async function createNewSession() {
-  const s = await sessions.createSession('New Window')
-  if (s) { wm.addWindow(s.id, s.title) }
+  const s = await sessions.createSession("New Window")
+  if (s) { wm.addWindow(s.id, s.title, s.parent_id, s.root_id) }
 }
 
-async function handleNodeClick(s: { id: string; title: string; status: string }) {
-  if (s.status === 'closed') {
-    await fetch(`http://localhost:8000/api/sessions/${s.id}`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'open' }),
+function handleTreeNodeClick(s: SessionInfo) { handleNodeClick(s) }
+
+async function handleNodeClick(s: SessionInfo) {
+  if (s.status === "closed") {
+    await fetch("http://localhost:8000/api/sessions/" + s.id, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "open" }),
     })
-    s.status = 'open'
-    wm.addWindow(s.id, s.title)
-  } else if (s.status === 'minimized') {
+    s.status = "open"
+    wm.addWindow(s.id, s.title, s.parent_id, s.root_id)
+  } else if (s.status === "minimized") {
     wm.focusWindow(s.id)
   } else {
-    wm.focusWindow(s.id)
+    if (wm.getWindow(s.id)) { wm.focusWindow(s.id) }
+    else { wm.addWindow(s.id, s.title, s.parent_id, s.root_id) }
   }
+}
+
+async function handleDelete(s: SessionInfo, event: Event) {
+  event.stopPropagation()
+  if (!confirm("Delete this node?")) return
+  await fetch("http://localhost:8000/api/sessions/" + s.id, { method: "DELETE" })
+  wm.removeWindow(s.id)
+  sessions.fetchSessions()
 }
 </script>
 
@@ -72,19 +97,5 @@ async function handleNodeClick(s: { id: string; title: string; status: string })
 }
 .new-btn:hover { background: #45475a; }
 .tree-list { flex: 1; overflow-y: auto; padding: 8px; }
-.tree-node {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; border-radius: 6px; cursor: pointer;
-  font-size: 13px; transition: background 0.15s;
-}
-.tree-node:hover { background: #313244; }
-.tree-node.active { background: #45475a; color: #fff; }
-.tree-node.closed { opacity: 0.5; }
-.tree-node.minimized { opacity: 0.7; font-style: italic; }
-.node-status { font-size: 10px; width: 16px; text-align: center; }
-.tree-node.active .node-status { color: #a6e3a1; }
-.tree-node.closed .node-status { color: #6c7086; }
-.tree-node.minimized .node-status { color: #f9e2af; }
-.node-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tree-empty { padding: 24px; text-align: center; color: #6c7086; font-size: 13px; }
 </style>
