@@ -17,6 +17,8 @@
       <MessageList
         :messages="chat.messages.value"
         @regenerate="handleRegenerate"
+        @noun-click="handleNounClick"
+        @text-select="handleTextSelect"
       />
     </div>
     <div class="resize-handle resize-n" @mousedown.stop="startResize($event, 'n')"></div>
@@ -118,6 +120,30 @@ function closeWindow() {
 
 function handleRegenerate(messageId: string) { chat.regenerateMessage(messageId) }
 function handleBreadcrumbClick(nodeId: string) { wm.focusWindow(nodeId) }
+
+async function handleNounClick(term: string) {
+  const res = await fetch("http://localhost:8000/api/sessions/", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title: term }),
+  })
+  const s = await res.json()
+  wm.addWindow(s.id, s.title)
+}
+
+async function handleTextSelect(text: string, isLong: boolean) {
+  if (isLong) {
+    window.dispatchEvent(new CustomEvent("insert-quote", { detail: { text } }))
+  } else {
+    const res = await fetch("http://localhost:8000/api/sessions/", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: text }),
+    })
+    const s = await res.json()
+    wm.addWindow(s.id, s.title)
+    const childChat = createChatState(s.id)
+    childChat.sendMessage(text)
+  }
+}
 </script>
 
 <style scoped>

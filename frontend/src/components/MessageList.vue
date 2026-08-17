@@ -11,6 +11,8 @@
       :is-streaming="msg.isStreaming"
       @copy="handleCopy(msg)"
       @regenerate="handleRegenerate(msg)"
+      @noun-click="handleNounClick"
+      @text-select="handleTextSelect"
     />
   </div>
 </template>
@@ -27,6 +29,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   copy: [content: string]
   regenerate: [messageId: string]
+  'noun-click': [term: string]
+  'text-select': [text: string, isLong: boolean]
 }>()
 
 const listRef = ref<HTMLElement | null>(null)
@@ -54,7 +58,15 @@ async function handleCopy(msg: ChatMessage) {
   }
 }
 
-function handleRegenerate(msg: ChatMessage) {
+function handleNounClick(term: string) {
+    emit('noun-click', term)
+  }
+
+  function handleTextSelect(text: string, isLong: boolean) {
+    emit('text-select', text, isLong)
+  }
+
+  function handleRegenerate(msg: ChatMessage) {
   emit('regenerate', msg.id)
 }
 </script>

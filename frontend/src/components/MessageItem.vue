@@ -2,7 +2,7 @@
   <div class="message-item" :class="[role, { streaming: isStreaming }]">
     <div class="message-avatar">{{ role === 'user' ? 'U' : 'AI' }}</div>
     <div class="message-body">
-      <div class="message-content" v-html="renderedContent"></div>
+      <div class="message-content" ref="contentRef" v-html="renderedContent"></div>
       <div class="message-actions" v-if="role === 'assistant' && !isStreaming">
         <button class="action-btn" @click="$emit('copy')" title="copy">copy</button>
         <button class="action-btn" @click="$emit('regenerate')" title="regenerate">regenerate</button>
@@ -13,7 +13,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { marked } from 'marked'
 import { markedHighlight } from 'marked-highlight'
 import hljs from 'highlight.js'
@@ -25,10 +25,31 @@ const props = defineProps<{
   isStreaming?: boolean
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   copy: []
   regenerate: []
+  'noun-click': [term: string]
+  'text-select': [text: string, isLong: boolean]
 }>()
+
+const contentRef = ref<HTMLElement | null>(null)
+
+// Tech dictionary for noun recognition
+const TECH_DICT = new Set([
+  'API', 'REST', 'GraphQL', 'SSE', 'WebSocket', 'HTTP', 'HTTPS', 'TCP', 'UDP', 'IP', 'DNS',
+  'JSON', 'XML', 'YAML', 'CSV', 'SQL', 'NoSQL', 'MySQL', 'PostgreSQL', 'MongoDB', 'Redis',
+  'Docker', 'Kubernetes', 'CI/CD', 'Git', 'GitHub', 'Jenkins',
+  'React', 'Vue', 'Angular', 'Svelte', 'Next.js', 'Nuxt',
+  'TypeScript', 'JavaScript', 'Python', 'Rust', 'Go', 'Java', 'C#', 'C++', 'Kotlin', 'Swift',
+  'Node.js', 'Deno', 'Bun', 'Express', 'FastAPI', 'Django', 'Flask', 'Spring',
+  'OAuth', 'JWT', 'CORS', 'CSRF', 'XSS', 'SSL', 'TLS',
+  'AWS', 'GCP', 'Azure', 'Vercel', 'Netlify', 'Cloudflare',
+  'ORM', 'MVC', 'MVVM', 'Webpack', 'Vite', 'esbuild', 'Babel',
+  'DevOps', 'Scrum', 'TDD', 'BDD', 'DDD', 'Nginx',
+  'WebRTC', 'gRPC', 'MQTT', 'Kafka', 'RabbitMQ',
+  'LLM', 'GPT', 'BERT', 'RAG', 'Embedding',
+  'LangChain', 'LangGraph', 'Agent', 'Fine-tuning',
+])
 
 // Configure marked with highlight.js
 marked.use(
@@ -48,14 +69,63 @@ marked.setOptions({
   gfm: true,
 })
 
+function wrapTerms(html: string): string {
+  // Only wrap in text segments, not inside code/pre/spans/links
+  const parts = html.split(/(<pre[^>]*>[\s\S]*?<\/pre>|<code[^>]*>[\s\S]*?<\/code>|<span[^>]*>[\s\S]*?<\/span>|<a[^>]*>[\s\S]*?<\/a>)/g)
+  return parts.map((part, i) => {
+    if (i % 2 !== 0 || part.startsWith('<')) return part
+    let result = part
+    for (const term of TECH_DICT) {
+      const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const regex = new RegExp('(?<![a-zA-Z0-9\\u4e00-\\u9fff/])(' + escaped + ')(?![a-zA-Z0-9\\u4e00-\\u9fff/])', 'g')
+      result = result.replace(regex, '<span class="dashed-underline" data-term="$1">$1</span>')
+    }
+    return result
+  }).join('')
+}
+
 const renderedContent = computed(() => {
   if (!props.content) return ''
   try {
     const html = marked.parse(props.content, { async: false })
+    if (props.role === 'assistant') {
+      return wrapTerms(html as string)
+    }
     return html as string
   } catch {
     return props.content.replace(/\n/g, '<br>')
   }
+})
+
+function handleClick(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  if (target.classList.contains('dashed-underline')) {
+    e.preventDefault()
+    e.stopPropagation()
+    const term = target.dataset.term || target.textContent || ''
+    emit('noun-click', term)
+  }
+}
+
+function handleMouseUp(_e: MouseEvent) {
+  setTimeout(() => {
+    const sel = window.getSelection()
+    if (!sel || sel.isCollapsed || !sel.toString().trim()) return
+    const text = sel.toString().trim()
+    if (!text || text.length < 2) return
+    const isLong = text.length > 50
+    emit('text-select', text, isLong)
+  }, 10)
+}
+
+onMounted(() => {
+  contentRef.value?.addEventListener('click', handleClick)
+  contentRef.value?.addEventListener('mouseup', handleMouseUp)
+})
+
+onUnmounted(() => {
+  contentRef.value?.removeEventListener('click', handleClick)
+  contentRef.value?.removeEventListener('mouseup', handleMouseUp)
 })
 </script>
 
@@ -177,6 +247,29 @@ const renderedContent = computed(() => {
   padding-left: 12px;
   margin: 8px 0;
   color: #6b7280;
+}
+
+.message-content :deep(.dashed-underline) {
+  text-decoration: underline dashed;
+  text-decoration-color: #6366f1;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  color: #4f46e5;
+  transition: background 0.15s;
+}
+.message-content :deep(.dashed-underline:hover) {
+  background: rgba(99, 102, 241, 0.1);
+  border-radius: 2px;
+}
+
+:global(.text-highlight-overlay) {
+  position: fixed;
+  background: rgba(0, 98, 255, 0.15);
+  border-radius: 2px;
+  pointer-events: auto;
+  cursor: pointer;
+  z-index: 9999;
+  transition: background 0.15s;
 }
 
 .message-actions {

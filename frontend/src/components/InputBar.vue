@@ -20,12 +20,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useWindowManager } from '../stores/windowManager'
 import { createChatState } from '../stores/chat'
 
 const wm = useWindowManager()
 const inputText = ref('')
+
+function handleInsertQuote(e: Event) {
+  const detail = (e as CustomEvent).detail
+  if (detail && detail.text) {
+    inputText.value = '> ' + detail.text + '\n\n' + inputText.value
+  }
+}
+
+onMounted(() => { window.addEventListener('insert-quote', handleInsertQuote) })
+onUnmounted(() => { window.removeEventListener('insert-quote', handleInsertQuote) })
 
 function sendMessage() {
   const content = inputText.value.trim()
