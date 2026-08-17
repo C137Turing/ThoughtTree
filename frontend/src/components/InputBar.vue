@@ -1,48 +1,63 @@
-<!-- InputBar.vue — 底部输入框 -->
 <template>
   <footer class="input-bar">
     <div class="input-wrapper">
+      <span class="current-window-badge" v-if="wm.topWindow" :title="wm.topWindow.title">
+        {{ wm.topWindow.title }}
+      </span>
       <input
         type="text"
         class="message-input"
-        placeholder="选择或创建一个窗口开始对话..."
-        disabled
+        v-model="inputText"
+        placeholder="Type a message..."
+        :disabled="!wm.topWindow"
+        @keydown.enter="sendMessage"
       />
+      <button class="send-btn" :disabled="!inputText.trim() || !wm.topWindow" @click="sendMessage">
+        Send
+      </button>
     </div>
   </footer>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
+import { useWindowManager } from '../stores/windowManager'
+import { createChatState } from '../stores/chat'
+
+const wm = useWindowManager()
+const inputText = ref('')
+
+function sendMessage() {
+  const content = inputText.value.trim()
+  if (!content || !wm.topWindow) return
+  const chat = createChatState(wm.topWindow.id)
+  chat.sendMessage(content)
+  inputText.value = ''
+}
 </script>
 
 <style scoped>
 .input-bar {
-  height: 60px;
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  background: var(--input-bar-bg, #f0f0f0);
-  border-top: 1px solid var(--border-color, #e0e0e0);
+  height: 60px; display: flex; align-items: center;
+  padding: 0 16px; background: #f0f0f0; border-top: 1px solid #e0e0e0;
 }
-
 .input-wrapper {
-  width: 100%;
+  width: 100%; display: flex; align-items: center; gap: 8px;
 }
-
+.current-window-badge {
+  padding: 4px 10px; background: #4f46e5; color: #fff;
+  border-radius: 6px; font-size: 12px; white-space: nowrap;
+  max-width: 160px; overflow: hidden; text-overflow: ellipsis;
+}
 .message-input {
-  width: 100%;
-  height: 40px;
-  padding: 0 16px;
-  border: 1px solid var(--border-color, #e0e0e0);
-  border-radius: 8px;
-  font-size: 14px;
-  background: #fff;
-  color: #999;
-  outline: none;
+  flex: 1; height: 40px; padding: 0 14px;
+  border: 1px solid #e0e0e0; border-radius: 8px;
+  font-size: 14px; background: #fff; color: #1f2937; outline: none;
 }
-
-.message-input:disabled {
-  cursor: not-allowed;
-  background: #f5f5f5;
+.message-input:disabled { background: #f5f5f5; color: #999; cursor: not-allowed; }
+.send-btn {
+  padding: 8px 20px; border: none; border-radius: 8px;
+  background: #4f46e5; color: #fff; font-size: 14px; cursor: pointer;
 }
+.send-btn:disabled { background: #c7d2fe; cursor: not-allowed; }
 </style>

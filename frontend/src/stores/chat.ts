@@ -1,4 +1,3 @@
-import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
 export interface ChatMessage {
@@ -9,7 +8,17 @@ export interface ChatMessage {
   createdAt?: string
 }
 
-export const useChatStore = defineStore('chat', () => {
+const chatCache = new Map<string, ReturnType<typeof _createChatState>>()
+
+export function createChatState(sessionId: string, baseUrl = 'http://localhost:8000') {
+  const existing = chatCache.get(sessionId)
+  if (existing) return existing
+  const state = _createChatState(sessionId, baseUrl)
+  chatCache.set(sessionId, state)
+  return state
+}
+
+function _createChatState(sessionId: string, baseUrl: string) {
   const messages = ref<ChatMessage[]>([])
   const isStreaming = ref(false)
   const error = ref<string | null>(null)
@@ -19,54 +28,26 @@ export const useChatStore = defineStore('chat', () => {
     return userMsgs[userMsgs.length - 1] ?? null
   })
 
-  async function sendMessage(
-    sessionId: string,
-    content: string,
-    baseUrl = 'http://localhost:8000'
-  ): Promise<void> {
+  async function sendMessage(content: string): Promise<void> {
     error.value = null
     isStreaming.value = true
-
-    const userMsg: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content,
-      createdAt: new Date().toISOString(),
-    }
+    const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content, createdAt: new Date().toISOString() }
     messages.value.push(userMsg)
-
-    const aiMsg: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: '',
-      isStreaming: true,
-      createdAt: new Date().toISOString(),
-    }
+    const aiMsg: ChatMessage = { id: crypto.randomUUID(), role: 'assistant', content: '', isStreaming: true, createdAt: new Date().toISOString() }
     messages.value.push(aiMsg)
-
-    await streamChat(sessionId, content, aiMsg, baseUrl)
+    await streamChat(content, aiMsg)
     isStreaming.value = false
   }
 
-  async function streamChat(
-    sessionId: string,
-    content: string,
-    aiMsg: ChatMessage,
-    baseUrl: string
-  ): Promise<void> {
+  async function streamChat(content: string, aiMsg: ChatMessage): Promise<void> {
     try {
-      const response = await fetch(
-        `${baseUrl}/api/sessions/${sessionId}/chat`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content }),
-        }
-      )
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const reader = response.body?.getReader()
+      const res = await fetch(`${baseUrl}/api/sessions/${sessionId}/chat`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const reader = res.body?.getReader()
       if (!reader) throw new Error('No response body')
-
       const decoder = new TextDecoder()
       let buffer = ''
       while (true) {
@@ -100,37 +81,30 @@ export const useChatStore = defineStore('chat', () => {
 
   function clearMessages(): void { messages.value = [] }
 
-  function removeMessage(id: string): void {
-    const idx = messages.value.findIndex((m) => m.id === id)
-    if (idx !== -1) messages.value.splice(idx, 1)
-  }
-
-  async function regenerateMessage(
-    aiMessageId: string,
-    sessionId: string,
-    baseUrl = 'http://localhost:8000'
-  ): Promise<void> {
+  async function regenerateMessage(aiMessageId: string): Promise<void> {
     const aiIdx = messages.value.findIndex((m) => m.id === aiMessageId)
     if (aiIdx === -1) return
     let userContent = ''
     for (let i = aiIdx - 1; i >= 0; i--) {
-      if (messages.value[i]!.role === 'user') {
-        userContent = messages.value[i]!.content
-        break
-      }
+      if (messages.value[i]!.role === 'user') { userContent = messages.value[i]!.content; break }
     }
     if (!userContent) return
     const aiMsg = messages.value[aiIdx]!
-    aiMsg.content = ''
-    aiMsg.isStreaming = true
-    error.value = null
-    isStreaming.value = true
-    await streamChat(sessionId, userContent, aiMsg, baseUrl)
+    aiMsg.content = ''; aiMsg.isStreaming = true
+    error.value = null; isStreaming.value = true
+    await streamChat(userContent, aiMsg)
     isStreaming.value = false
   }
 
-  return {
-    messages, isStreaming, error, lastUserMessage,
-    sendMessage, clearMessages, removeMessage, regenerateMessage,
+  async function loadHistory(): Promise<void> {
+    try {
+      const res = await fetch(`${baseUrl}/api/sessions/${sessionId}/messages`)
+      if (res.ok) {
+        const msgs = await res.json()
+        messages.value = msgs.map((m: any) => ({ id: m.id, role: m.role, content: m.content, isStreaming: false, createdAt: m.created_at }))
+      }
+    } catch { /* offline */ }
   }
-})
+
+  return { messages, isStreaming, error, lastUserMessage, sendMessage, clearMessages, regenerateMessage, loadHistory }
+}

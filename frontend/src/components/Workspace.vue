@@ -1,31 +1,18 @@
-<!-- Workspace.vue — 工作区容器 -->
 <template>
-  <main class="workspace">
-    <div class="workspace-placeholder">
-      <p>工作区</p>
-    </div>
-  </main>
+  <div class="workspace">
+    <StackArea />
+  </div>
 </template>
 
 <script setup lang="ts">
+import StackArea from './StackArea.vue'
 </script>
 
 <style scoped>
 .workspace {
-  flex: 1;
-  height: 100%;
-  position: relative;
-  overflow: hidden;
-  background: var(--workspace-bg, #ffffff);
-}
-
-.workspace-placeholder {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: #ccc;
-  font-size: 24px;
-  user-select: none;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
 }
 </style>

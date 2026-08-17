@@ -3,10 +3,8 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-
-# --- Session ---
 
 class SessionCreate(BaseModel):
     title: str = "new window"
@@ -35,12 +33,6 @@ class SessionResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-# --- Message ---
-
-class MessageCreate(BaseModel):
-    content: str
-
-
 class MessageResponse(BaseModel):
     id: str
     session_id: str
@@ -52,29 +44,13 @@ class MessageResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-# --- Chat ---
-
 class ChatRequest(BaseModel):
     content: str
 
 
-class ChatTokenEvent(BaseModel):
-    delta: str
-
-
-class ChatDoneEvent(BaseModel):
-    message_id: str
-
-
-class ChatErrorEvent(BaseModel):
-    message: str
-
-
-# --- Config ---
-
 class UserConfigResponse(BaseModel):
     id: int = 1
-    active_model: str = "deepseek"
+    active_model: str = "deepseek-v4-flash"
     ears_enabled: bool = False
     numbering_style: str = "standard"
     sdd_mapping_rules: Optional[dict] = None
