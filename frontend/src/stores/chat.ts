@@ -56,11 +56,11 @@ function _createChatState(sessionId: string, baseUrl: string) {
         buffer += decoder.decode(value, { stream: true })
         const lines = buffer.split('\n')
         buffer = lines.pop() || ''
+        let event = '', data = ''
         for (const line of lines) {
-          if (!line.trim()) continue
-          let event = '', data = ''
           if (line.startsWith('event: ')) event = line.slice(7).trim()
           else if (line.startsWith('data: ')) data = line.slice(6).trim()
+          else if (!line.trim()) continue
           else continue
           if (!event || !data) continue
           try {
@@ -69,6 +69,7 @@ function _createChatState(sessionId: string, baseUrl: string) {
             else if (event === 'done') { aiMsg.id = parsed.message_id; aiMsg.isStreaming = false }
             else if (event === 'error') { error.value = parsed.message; aiMsg.content = `[Error: ${parsed.message}]`; aiMsg.isStreaming = false }
           } catch { /* skip */ }
+          event = ''; data = ''
         }
       }
     } catch (e: unknown) {

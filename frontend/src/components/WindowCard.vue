@@ -47,7 +47,22 @@ const chat = createChatState(props.win.id)
 const cardRef = ref<HTMLElement | null>(null)
 const breadcrumb = ref<{ id: string; title: string }[]>([])
 
-onMounted(() => { chat.loadHistory() })
+onMounted(() => {
+  chat.loadHistory()
+  loadBreadcrumb()
+})
+
+async function loadBreadcrumb() {
+  try {
+    const res = await fetch("http://localhost:8000/api/sessions/" + props.win.id)
+    const s = await res.json()
+    const treeRes = await fetch("http://localhost:8000/api/sessions/" + s.root_id + "/tree")
+    const tree = await treeRes.json()
+    const ancestors = tree.filter((n: any) => n.id !== props.win.id).map((n: any) => ({ id: n.id, title: n.title }))
+    ancestors.push({ id: s.id, title: s.title })
+    breadcrumb.value = ancestors
+  } catch { /* ignore */ }
+}
 
 // Dragging
 useDraggable(cardRef, {
@@ -124,7 +139,7 @@ function handleBreadcrumbClick(nodeId: string) { wm.focusWindow(nodeId) }
 async function handleNounClick(term: string) {
   const res = await fetch("http://localhost:8000/api/sessions/", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title: term }),
+    body: JSON.stringify({ title: term, parent_id: props.win.id, root_id: props.win.rootId }),
   })
   const s = await res.json()
   wm.addWindow(s.id, s.title)
@@ -136,10 +151,10 @@ async function handleTextSelect(text: string, isLong: boolean) {
   } else {
     const res = await fetch("http://localhost:8000/api/sessions/", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: text }),
+      body: JSON.stringify({ title: text, parent_id: props.win.id, root_id: props.win.rootId }),
     })
     const s = await res.json()
-    wm.addWindow(s.id, s.title)
+    wm.addWindow(s.id, s.title, props.win.id, s.root_id)
     const childChat = createChatState(s.id)
     childChat.sendMessage(text)
   }

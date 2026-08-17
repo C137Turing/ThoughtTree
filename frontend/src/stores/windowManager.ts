@@ -5,6 +5,8 @@ import { ref, computed } from 'vue'
 export interface WindowState {
   id: string
   title: string
+  parentId: string | null
+  rootId: string
   position: { x: number; y: number }
   size: { width: number; height: number }
   zIndex: number
@@ -54,7 +56,7 @@ export const useWindowManager = defineStore('windowManager', () => {
    * 创建并激活窗口。
    * 新窗口获得最高 zIndex，旧窗口倾斜变灰退后。
    */
-  function addWindow(id: string, title: string): WindowState {
+  function addWindow(id: string, title: string, parentId: string | null = null, rootId: string = id): WindowState {
     // 将当前所有活跃窗口倾斜退后
     for (const w of windows.value.values()) {
       if (w.status === 'active') {
@@ -68,6 +70,8 @@ export const useWindowManager = defineStore('windowManager', () => {
     const win: WindowState = {
       id,
       title,
+      parentId,
+      rootId: rootId || id,
       position: { x: 100, y: 80 },
       size: { width: 600, height: 400 },
       zIndex: nextZIndex.value++,

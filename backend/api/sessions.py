@@ -101,14 +101,26 @@ async def update_session(session_id: str, req: SessionUpdate, db: AsyncSession =
 
 @router.delete("/{session_id}", status_code=204)
 async def delete_session(session_id: str, db: AsyncSession = Depends(get_db)):
-    """Delete a session. Children promoted via SET NULL FK."""
+    """Delete a session. Children promoted to parent's parent."""
     result = await db.execute(select(Session).where(Session.id == session_id))
     s = result.scalar_one_or_none()
     if not s:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    # Promote children: set parent_id = deleted node's parent_id
+    await db.execute(
+        update(Session).where(Session.parent_id == session_id).values(parent_id=s.parent_id)
+    )
+
+    # Clean up session_tree entries for this node
+    await db.execute(
+        delete(SessionTree).where(
+            (SessionTree.ancestor_id == session_id) | (SessionTree.descendant_id == session_id)
+        )
+    )
+
     await db.delete(s)
     await db.commit()
-
 
 @router.get("/{session_id}/tree", response_model=list[SessionResponse])
 async def get_session_tree(session_id: str, db: AsyncSession = Depends(get_db)):
