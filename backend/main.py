@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.sessions import router as sessions_router
 from api.messages import router as messages_router
 from api.config import router as config_router
+from api.sdd import router as sdd_router
 
 app = FastAPI(
     title="AI Requirement Analysis Workbench",
@@ -26,6 +27,7 @@ app.add_middleware(
 app.include_router(sessions_router)
 app.include_router(messages_router)
 app.include_router(config_router)
+app.include_router(sdd_router)
 
 
 @app.get("/health")
