@@ -12,12 +12,12 @@
       </span>
       <span class="node-title">{{ node.session.title }}</span>
     </div>
-    <TreeNodeItem
+    <TreeNode
       v-for="child in node.children"
       :key="child.session.id"
       :node="child"
-      @click="$emit('click', child.session)"
-      @delete="$emit('delete', $event)"
+      @click="(s: any) => $emit('click', s)"
+      @delete="(e: any) => $emit('delete', e)"
     />
   </div>
 </template>

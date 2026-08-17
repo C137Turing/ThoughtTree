@@ -119,6 +119,13 @@ async def delete_session(session_id: str, db: AsyncSession = Depends(get_db)):
         )
     )
 
+    # Rebuild closure for promoted children with correct depths
+    promoted = await db.execute(
+        select(Session).where(Session.parent_id == s.parent_id).where(Session.id != session_id)
+    )
+    for child in promoted.scalars().all():
+        await _maintain_closure(db, child.id, child.parent_id)
+
     await db.delete(s)
     await db.commit()
 
