@@ -107,25 +107,81 @@ function handleClick(e: MouseEvent) {
   }
 }
 
+let overlayEl: HTMLDivElement | null = null
+
+function clearOverlay() {
+  if (overlayEl) {
+    overlayEl.remove()
+    overlayEl = null
+  }
+}
+
 function handleMouseUp(_e: MouseEvent) {
   setTimeout(() => {
     const sel = window.getSelection()
     if (!sel || sel.isCollapsed || !sel.toString().trim()) return
     const text = sel.toString().trim()
     if (!text || text.length < 2) return
+
+    const range = sel.getRangeAt(0)
+    const rect = range.getBoundingClientRect()
     const isLong = text.length > 50
-    emit('text-select', text, isLong)
+
+    // Remove old overlay (global single instance)
+    clearOverlay()
+
+    // Create new overlay
+    overlayEl = document.createElement('div')
+    overlayEl.className = 'text-highlight-overlay'
+    overlayEl.style.cssText = [
+      `left: ${rect.left + window.scrollX}px`,
+      `top: ${rect.top + window.scrollY}px`,
+      `width: ${rect.width}px`,
+      `height: ${rect.height}px`,
+      `position: fixed`,
+      `background: rgba(0, 98, 255, 0.15)`,
+      `border-radius: 2px`,
+      `pointer-events: auto`,
+      `cursor: pointer`,
+      `z-index: 9999`,
+      `transition: background 0.15s`,
+    ].join(';')
+
+    overlayEl.addEventListener('mouseenter', () => {
+      if (overlayEl) overlayEl.style.background = 'rgba(0, 98, 255, 0.25)'
+    })
+    overlayEl.addEventListener('mouseleave', () => {
+      if (overlayEl) overlayEl.style.background = 'rgba(0, 98, 255, 0.15)'
+    })
+    overlayEl.addEventListener('click', (ev) => {
+      ev.stopPropagation()
+      emit('text-select', text, isLong)
+      clearOverlay()
+      window.getSelection()?.removeAllRanges()
+    })
+
+    document.body.appendChild(overlayEl)
   }, 10)
+}
+
+function handleGlobalClick(e: MouseEvent) {
+  if (overlayEl && e.target !== overlayEl) {
+    clearOverlay()
+    window.getSelection()?.removeAllRanges()
+  }
 }
 
 onMounted(() => {
   contentRef.value?.addEventListener('click', handleClick)
   contentRef.value?.addEventListener('mouseup', handleMouseUp)
+  document.addEventListener('click', handleGlobalClick, true)
 })
 
 onUnmounted(() => {
   contentRef.value?.removeEventListener('click', handleClick)
   contentRef.value?.removeEventListener('mouseup', handleMouseUp)
+  document.removeEventListener('click', handleGlobalClick, true)
+  clearOverlay()
 })
 </script>
 
