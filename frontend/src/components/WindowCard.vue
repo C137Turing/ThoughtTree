@@ -66,6 +66,7 @@ async function loadBreadcrumb() {
 // Dragging
 useDraggable(cardRef, {
   initialValue: { x: props.win.position.x, y: props.win.position.y },
+  handle: cardRef.value,
   onEnd: (pos) => { wm.updateWindowPosition(props.win.id, pos.x, pos.y) },
 })
 

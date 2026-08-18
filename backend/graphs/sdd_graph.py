@@ -69,7 +69,7 @@ async def classify_nodes(state: SddState) -> SddState:
             node["classification"] = "unresolved"
         elif any(kw in combined for kw in ["performance", "security", "safety", "availability", "reliability"]):
             node["classification"] = "non_functional"
-        elif any(kw in combined for kw in ["api", "payment", "sdk", "integration", "interface"]):
+        elif any(kw in combined for kw in ["api", "payment", "sdk", "integration", "interface"]) and not any(kw in combined for kw in ["process", "handle", "manage", "feature", "function"]):
             node["classification"] = "external"
         else:
             node["classification"] = "functional"
@@ -108,7 +108,7 @@ def _numbering_standard(index: list[int]) -> str:
 
 def _numbering_chinese(index: list[int]) -> str:
     if len(index) == 1:
-        chars = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"]
+        chars = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"]
         return chars[index[0] - 1] if index[0] <= 10 else str(index[0])
     elif len(index) == 2:
         return str(index[1]) + "."

@@ -72,7 +72,7 @@ export const useWindowManager = defineStore('windowManager', () => {
       title,
       parentId,
       rootId: rootId || id,
-      position: { x: 100, y: 80 },
+      position: { x: 100 + Math.random() * 100, y: 80 + Math.random() * 60 },
       size: { width: 600, height: 400 },
       zIndex: nextZIndex.value++,
       rotation: 0,

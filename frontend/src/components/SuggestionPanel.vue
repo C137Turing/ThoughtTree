@@ -28,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useWindowManager } from '../stores/windowManager'
 import { useSessionsStore } from '../stores/sessions'
 
@@ -53,6 +53,9 @@ onMounted(() => {
   }, 30000)
   fetchSuggestions()
 })
+watch(() => wm.activeWindows.length, () => { fetchSuggestions() })
+watch(() => sessions.sessions.value.length, () => { fetchSuggestions() })
+
 onUnmounted(() => {
   document.removeEventListener('keydown', resetActivity)
   document.removeEventListener('click', resetActivity)
