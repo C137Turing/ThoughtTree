@@ -27,6 +27,14 @@
       </div>
     </div>
     <div class="sdd-loading" v-if="loading"><p>Generating...</p></div>
+
+    <QualityReport
+      v-if="showQualityReport"
+      :report="qualityReport"
+      @close="showQualityReport = false"
+      @continue="generateSdd(true)"
+      @fix="handleFixIssue"
+    />
   </div>
 </template>
 
@@ -34,6 +42,7 @@
 import { ref, computed } from 'vue'
 import { marked } from 'marked'
 import { useWindowManager } from '../stores/windowManager'
+import QualityReport from './QualityReport.vue'
 
 defineEmits<{ close: [] }>()
 
@@ -42,6 +51,8 @@ const rootId = ref(wm.topWindow?.id || '')
 const sddContent = ref<string | null>(null)
 const loading = ref(false)
 const contentRef = ref<HTMLElement | null>(null)
+const showQualityReport = ref(false)
+const qualityReport = ref<any>(null)
 
 const navSections = computed(() => {
   if (!sddContent.value) return []
@@ -61,10 +72,37 @@ async function generate() {
   if (!rootId.value) return
   loading.value = true
   try {
-    const res = await fetch('http://localhost:8000/api/sdd/generate', {
+    const qr = await fetch('http://localhost:8000/api/sdd/quality/check', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ root_id: rootId.value }),
     })
+    qualityReport.value = await qr.json()
+    if (qualityReport.value.overall?.passed) {
+      await generateSdd(false)
+    } else {
+      showQualityReport.value = true
+    }
+  } catch { await generateSdd(true) }
+  finally { loading.value = false }
+}
+
+async function generateSdd(force: boolean) {
+  showQualityReport.value = false
+  loading.value = true
+  try {
+    const res = await fetch('http://localhost:8000/api/sdd/generate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ root_id: rootId.value, force }),
+    })
+    if (!res.ok) {
+      const err = await res.json()
+      if (err.detail?.report) {
+        qualityReport.value = err.detail.report
+        showQualityReport.value = true
+        loading.value = false
+        return
+      }
+    }
     const { task_id } = await res.json()
     for (let i = 0; i < 30; i++) {
       await new Promise((r) => setTimeout(r, 500))
@@ -76,6 +114,11 @@ async function generate() {
   } catch (e: unknown) {
     sddContent.value = '# Error\n\n' + (e instanceof Error ? e.message : 'Unknown error')
   } finally { loading.value = false }
+}
+
+function handleFixIssue(issue: any) {
+  showQualityReport.value = false
+  window.dispatchEvent(new CustomEvent('insert-quote', { detail: { text: issue.message } }))
 }
 
 function scrollTo(_key: string) {
