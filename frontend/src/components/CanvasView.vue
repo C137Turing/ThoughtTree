@@ -9,6 +9,7 @@
       @connect="onConnect"
       @edge-dbl-click="onEdgeDoubleClick"
       @pane-click="closeContextMenu"
+      @node-drag-stop="onNodeDragStop"
     >
       <Background />
       <Controls />
@@ -72,7 +73,7 @@ function buildCanvas() {
     const isDangling = s.status === 'open' && !list.some((x) => x.parent_id === s.id)
     return {
       id: s.id, type: 'custom',
-      position: { x: col * 250 + 50, y: row * 120 + 50 },
+      position: s.position_x && s.position_y ? { x: s.position_x, y: s.position_y } : { x: col * 250 + 50, y: row * 120 + 50 },
       data: { label: s.title, status: s.status, sessionId: s.id, isDangling },
     }
   })
@@ -105,6 +106,16 @@ function showContextMenu(event: MouseEvent, data: any) {
 }
 
 function closeContextMenu() { contextMenu.value.visible = false }
+
+function onNodeDragStop(event: any) {
+  const node = event.node
+  if (node) {
+    fetch('http://localhost:8000/api/sessions/' + node.id, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ position_x: node.position.x, position_y: node.position.y }),
+    }).catch(() => {})
+  }
+}
 
 function openNode(sessionId: string) {
   closeContextMenu()

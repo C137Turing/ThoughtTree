@@ -3,6 +3,7 @@ import { ref } from 'vue'
 export interface SessionInfo {
   id: string; title: string; parent_id: string | null; root_id: string
   status: string; created_at?: string
+  position_x?: number; position_y?: number
 }
 
 const sessions = ref<SessionInfo[]>([])
