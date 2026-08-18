@@ -16,6 +16,7 @@
         No sessions yet
       </div>
     </div>
+    <SuggestionPanel />
   </aside>
 </template>
 
@@ -23,6 +24,7 @@
 import { onMounted, computed } from "vue"
 import { useSessionsStore, type SessionInfo } from "../stores/sessions"
 import { useWindowManager } from "../stores/windowManager"
+import SuggestionPanel from "./SuggestionPanel.vue"
 import TreeNode from "./TreeNode.vue"
 
 const sessions = useSessionsStore()
